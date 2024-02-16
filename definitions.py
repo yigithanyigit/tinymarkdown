@@ -1,0 +1,24 @@
+class Definitions:
+    HEADING1 = 'h1'
+    HEADING2 = 'h2'
+    HEADING3 = 'h3'
+    HEADING4 = 'h4'
+    HEADING5 = 'h5'
+    HEADING6 = 'h6'
+
+    HEADINGS = [HEADING1, HEADING2, HEADING3, HEADING4, HEADING5, HEADING6]
+
+    PARAGRAPH = 'p'
+
+    WORD = 'word'
+
+    WHITESPACE = 'whitespace'
+    
+    INTEGER = 'integer'
+
+    ORDERED_LIST_ELEMENT = 'ol'
+
+    UNORDERED_LIST_MARKER = 'ul_marker'
+    UNORDERED_LIST_ELEMENT = 'li'
+    
+    EOF = 'EOF'
