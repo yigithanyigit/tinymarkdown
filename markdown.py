@@ -89,7 +89,7 @@ class Lexer:
 
     def get_next_token(self):
         while self.current_char is not None:
-            print(ord(self.current_char), f"({self.current_char}-)")
+            #print(ord(self.current_char), f"({self.current_char}-)")
 
             if self.current_char.isdigit():
                 return Token(Definitions.INTEGER, self.make_number())

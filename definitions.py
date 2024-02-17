@@ -14,6 +14,7 @@ class Definitions:
 
     WHITESPACE = 'whitespace'
     DOT = 'dot'
+    NEWLINE = 'newline'
     
     INTEGER = 'integer'
 
