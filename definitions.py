@@ -13,10 +13,12 @@ class Definitions:
     WORD = 'word'
 
     WHITESPACE = 'whitespace'
+    DOT = 'dot'
     
     INTEGER = 'integer'
 
-    ORDERED_LIST_ELEMENT = 'ol'
+    ORDERED_LIST_ELEMENT = 'li'
+    ORDERED_LIST_MARKER = 'ol_marker'
 
     UNORDERED_LIST_MARKER = 'ul_marker'
     UNORDERED_LIST_ELEMENT = 'li'
