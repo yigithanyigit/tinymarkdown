@@ -87,6 +87,10 @@ class Lexer:
         self.advance()
         return char
 
+    def make_newline(self):
+        self.advance()
+        return None
+
     def get_next_token(self):
         while self.current_char is not None:
             #print(ord(self.current_char), f"({self.current_char}-)")
@@ -104,8 +108,7 @@ class Lexer:
                 return self.make_heading()
 
             if self.current_char == '\n':
-                self.advance()
-                continue
+                return Token(Definitions.NEWLINE, self.make_newline())
 
             if self.current_char.isalpha():
                 return Token(Definitions.WORD, self.make_word())
@@ -188,6 +191,11 @@ class Parser:
             return self.unordered_list()
         if self.current_token.type == Definitions.INTEGER:
             return self.ordered_list()
+        if self.current_token.type == Definitions.NEWLINE:
+            self.eat(Definitions.NEWLINE)
+            return self.block()
+        if self.current_token.type == Definitions.EOF:
+            return Token(Definitions.EOF, None)
         self.error()
 
 
@@ -201,108 +209,117 @@ class Parser:
             token.type = Definitions.PARAGRAPH
         token.value = self.current_token.value
         self.eat(Definitions.WORD)
+
         return token
     
     def paragraph(self):
-        token = self.current_token
-        """
-        while self.current_token == Definitions.WHITESPACE:
-            token.value += ' '
-            print(self.current_token)
-            self.eat(Definitions.WHITESPACE)
-        """
-        
-        if self.current_token.type == Definitions.WHITESPACE:
-            self.eat(Definitions.WHITESPACE)
-        
-        token.value = self.current_token.value
-        self.eat(Definitions.WORD)
-        token.type = Definitions.PARAGRAPH
-        return token
+        token_value = ''
+        whitespace = False
+        while self.current_token.type in [Definitions.WORD, Definitions.INTEGER, Definitions.DOT, Definitions.WHITESPACE]:
+            token = self.current_token
+            if self.current_token.type == Definitions.WORD:
+                self.eat(Definitions.WORD)
+
+            elif self.current_token.type == Definitions.DOT:
+                self.eat(Definitions.DOT)
+            elif self.current_token.type == Definitions.WHITESPACE:
+                self.eat(Definitions.WHITESPACE)
+                if not whitespace:
+                    whitespace = True
+                    token_value += ' '
+                continue
+            else:
+                self.eat(Definitions.INTEGER)
+
+            token_value += token.value
+        return Token(Definitions.PARAGRAPH, token_value)
 
     def unordered_list(self):
         list = UnorderedList()
-        while self.current_token.type == Definitions.UNORDERED_LIST_MARKER:
-            marker_token = self.current_token
-            self.eat(Definitions.UNORDERED_LIST_MARKER)
+        while self.current_token.type in [Definitions.UNORDERED_LIST_MARKER, Definitions.INTEGER, Definitions.WORD]:
 
+            if self.current_token.type == Definitions.UNORDERED_LIST_MARKER:
 
-            if self.current_token.type == Definitions.WORD:
-                token = self.paragraph()
-                token.value = marker_token.value + token.value
-                list.list.append(token)
-                continue
+                marker_token = self.current_token
+                self.eat(Definitions.UNORDERED_LIST_MARKER)
 
-
-            self.eat(Definitions.WHITESPACE)
-            token = self.current_token
-            self.eat(Definitions.WORD)
-            token.type = Definitions.UNORDERED_LIST_ELEMENT
-            list.list.append(token)
-        return list
-
-        """
-        while self.current_token.type in [Definitions.WORD, Definitions.UNORDERED_LIST_MARKER]:
-            print(self.current_token)
-            self.eat(Definitions.UNORDERED_LIST_MARKER)
-            token = self.current_token
-            print(token)
-            self.eat(Definitions.WORD)
-            # TODO: get unordered list element as seperate token, not as paragraph
-            token.type = Definitions.UNORDERED_LIST_ELEMENT
-            list.list.append(token)
-        return list
-        """
-
-    def ordered_list(self):
-        list = OrderedList()
-
-        while self.current_token.type == Definitions.INTEGER:
-            marker_token = self.current_token
-            self.eat(Definitions.INTEGER)
-            if self.current_token.type == Definitions.DOT:
-                self.eat(Definitions.DOT)
-
-                if self.current_token.type != Definitions.WHITESPACE:
+                if self.current_token.type == Definitions.WORD:
                     token = self.paragraph()
-                    token.value = marker_token.value + '.' + token.value
-                    return token
+                    token.value = marker_token.value + token.value
+                    list.list.append(token)
 
+                    if self.current_token.type == Definitions.NEWLINE:
+                        self.eat(Definitions.NEWLINE)
+                    continue
 
                 self.eat(Definitions.WHITESPACE)
                 token = self.current_token
                 self.eat(Definitions.WORD)
-                token.type = Definitions.ORDERED_LIST_ELEMENT
-                print(token)
+                token.type = Definitions.UNORDERED_LIST_ELEMENT
                 list.list.append(token)
-                continue
+
+            elif self.current_token.type in [Definitions.WORD, Definitions.INTEGER]:
+                token = self.paragraph()
+                list.list.append(token)
+        
+            # checks if the next token is a newline for EOF
+            if self.current_token.type == Definitions.NEWLINE:
+                self.eat(Definitions.NEWLINE)
+
+        return list
 
 
-            if self.current_token.type == Definitions.WHITESPACE:
-                marker_token.value += ' '
-            token = self.paragraph()
-            token.value = marker_token.value + token.value
-            return token
+    def ordered_list(self):
+        list = OrderedList()
+
+        while self.current_token.type in [Definitions.INTEGER, Definitions.WORD]:
+            if self.current_token.type == Definitions.INTEGER:
+                marker_token = self.current_token
+                self.eat(Definitions.INTEGER)
+                if self.current_token.type == Definitions.DOT:
+                    self.eat(Definitions.DOT)
+
+                    if self.current_token.type != Definitions.WHITESPACE:
+                        token = self.paragraph()
+                        token.value = marker_token.value + '.' + token.value
+                        return token
+
+                    self.eat(Definitions.WHITESPACE)
+                    token = self.current_token
+                    self.eat(Definitions.WORD)
+                    token.type = Definitions.ORDERED_LIST_ELEMENT
+                    list.list.append(token)
+
+                    # Check if the next token is a newline before continue
+                    if self.current_token.type == Definitions.NEWLINE:
+                        self.eat(Definitions.NEWLINE)
+                   
+                    continue
+
+                if self.current_token.type == Definitions.WHITESPACE:
+                    marker_token.value += ' '
+                token = self.paragraph()
+                token.value = marker_token.value + token.value
+                list.list.append(token)
+
+            elif self.current_token.type == Definitions.WORD:
+                token = self.paragraph()
+                list.list.append(token)
+            
+            # checks if the next token is a newline for EOF
+            if self.current_token.type == Definitions.NEWLINE:
+                self.eat(Definitions.NEWLINE)
 
         return list  
      
-        """
-        list = OrderedList()
-        integer = self.current_token
-        self.eat(Definitions.INTEGER)
-        if self.current_token.type == Definitions.DOT:
-            self.eat(Definitions.DOT)
-            self.eat(Definitions.WHITESPACE)
-            token = self.current_token
-            return
-        """
-
 
 class Interpreter:
     def __init__(self, parser):
         self.parser = parser
 
     def print_token(self, token):
+        if token.type == Definitions.EOF:
+            return
         print(f"<{token.type}>")
         print(token.value)
         print(f"</{token.type}>")
@@ -324,21 +341,11 @@ class Interpreter:
         self.convert_to_html()
 
 if __name__ == "__main__":
-    text = "### Heading\ndeneme1234\n- a\n-a\nasdasd\n1asdadasd"
-    
+    text = "# Hello World\n\n- This is a list\n- This is another list\n\n1. This is an ordered list\n2. This is another ordered list\n\nThis is a paragraph\n\n# This is a heading\n\nThis only supports those rules :)"
+        
     
     I = Interpreter(Parser(Lexer(text)))
     I.interpret()
     
-
-    """
-    L = Lexer(text)
-    token = L.get_next_token()
-    while token.type != Definitions.EOF:
-        print(token)
-        token = L.get_next_token()
-    """
-
-
 
 
